@@ -63,9 +63,10 @@ jobs:
 
       - name: Windows 打 ZIP
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          Compress-Archive -Path dist/差旅搭子/* \
-            -DestinationPath ${{ matrix.artifact_name }}.${{ matrix.ext }}
+          # 用 7z 压缩（避免 Compress-Archive 对中文路径的编码问题）
+          7z a -tzip ${{ matrix.artifact_name }}.${{ matrix.ext }} ./dist/差旅搭子/*
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
