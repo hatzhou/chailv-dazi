@@ -244,12 +244,77 @@ def stylesheet() -> str:
         background: {C['surface_2']};
         color: {C['text']};
     }}
+    /* --- 下拉菜单（菜单栏） --- */
+    QMenuBar {{
+        background: {C['surface']};
+        border: none;
+        padding: 2px 6px;
+    }}
+    QMenuBar::item {{
+        background: transparent;
+        padding: 6px 12px;
+        color: {C['text_2']};
+        border-radius: 6px;
+    }}
+    QMenuBar::item:selected {{
+        background: {C['surface_2']};
+        color: {C['text']};
+    }}
+    QMenu {{
+        background: {C['surface']};
+        border: 1px solid {C['border']};
+        border-radius: 10px;
+        padding: 6px;
+    }}
+    QMenu::item {{
+        background: transparent;
+        color: {C['text']};
+        padding: 9px 24px 9px 14px;
+        border-radius: 6px;
+        min-height: 18px;
+    }}
+    QMenu::item:selected {{
+        background: {C['brand']};
+        color: #FFFFFF;
+    }}
+    QMenu::separator {{
+        height: 1px;
+        background: {C['border']};
+        margin: 5px 8px;
+    }}
+
+    /* --- 日期选择器弹出层 --- */
     QDateEdit::drop-calendar {{
         background: {C['surface']};
+        border: 1px solid {C['border']};
+        border-radius: 10px;
+    }}
+    QCalendarWidget {{
+        background: {C['surface']};
+        border: none;
+    }}
+    QCalendarWidget QWidget#qt_calendar_navigationbar {{
+        background: {C['surface']};
+        border: none;
+    }}
+    QCalendarWidget QToolButton {{
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        padding: 4px;
+        color: {C['text']};
+    }}
+    QCalendarWidget QToolButton:hover {{
+        background: {C['surface_2']};
     }}
     QCalendarWidget QTableView {{
+        background: {C['surface']};
         selection-background-color: {C['brand']};
         selection-color: #FFFFFF;
+        outline: 0;
+    }}
+    QCalendarWidget QTableView::item {{
+        border-radius: 6px;
     }}
 
     /* ===================== 卡片 ===================== */
