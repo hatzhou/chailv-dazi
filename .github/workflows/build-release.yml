@@ -13,13 +13,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact_name: 差旅搭子-linux-x64
+            artifact_name: chailv-dazi-linux-x64
             ext: tar.gz
           - os: macos-latest
-            artifact_name: 差旅搭子-macos
+            artifact_name: chailv-dazi-macos
             ext: dmg
           - os: windows-latest
-            artifact_name: 差旅搭子-windows-x64
+            artifact_name: chailv-dazi-windows-x64
             ext: zip
 
     runs-on: ${{ matrix.os }}
