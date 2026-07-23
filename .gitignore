@@ -14,4 +14,5 @@ __pycache__/
 build/
 dist/
 *.spec
+!chailv_dazi.spec
 .DS_Store
