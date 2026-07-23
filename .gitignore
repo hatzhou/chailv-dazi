@@ -1,0 +1,17 @@
+# 数据目录（含本地数据库与发票附件，不入库）
+.chailv_dazi/
+data/
+
+# 中文字体（仅沙盒内生成手册截图用，不随代码分发）
+assets/fonts/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 打包 / 临时
+build/
+dist/
+*.spec
+.DS_Store
