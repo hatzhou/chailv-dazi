@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
                                QTableWidgetItem, QLineEdit, QPushButton, QComboBox,
-                               QDateEdit, QLabel, QHeaderView, QMessageBox, QFrame,
+                               QLabel, QHeaderView, QMessageBox, QFrame,
                                QStackedWidget)
 from PySide6.QtCore import Qt, Signal, QDate
 from PySide6.QtGui import QColor
@@ -14,6 +14,7 @@ from db.models import Invoice
 from ui.widgets import (fill_category_combo, fill_trip_combo, fill_status_combo,
                         fmt_money, status_label, status_color, StatusBadge,
                         EmptyState, primary_button)
+from ui.date_picker import DatePicker
 from ui.icons import icon as _icon
 
 COLUMNS = ["状态", "发票号码", "分类", "金额", "税额", "开票日期",
@@ -45,12 +46,10 @@ class InvoiceList(QWidget):
         self.cat = QComboBox()
         self.trip = QComboBox()
         self.status = QComboBox()
-        self.date_from = QDateEdit()
-        self.date_from.setCalendarPopup(True)
+        self.date_from = DatePicker()
         self.date_from.setDisplayFormat("yyyy-MM-dd")
         self.date_from.setDate(QDate(2000, 1, 1))
-        self.date_to = QDateEdit()
-        self.date_to.setCalendarPopup(True)
+        self.date_to = DatePicker()
         self.date_to.setDisplayFormat("yyyy-MM-dd")
         self.date_to.setDate(QDate.currentDate())
         btn_filter = QPushButton(" 筛选")

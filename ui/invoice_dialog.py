@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
-                               QLineEdit, QComboBox, QDateEdit, QTextEdit, QPushButton,
+                               QLineEdit, QComboBox, QTextEdit, QPushButton,
                                QLabel, QDialogButtonBox, QListWidget, QFileDialog,
                                QMessageBox, QDoubleSpinBox, QGroupBox)
 from PySide6.QtCore import Qt, QDate, QUrl
@@ -14,6 +14,7 @@ from db.database import InvoiceDB
 from db.models import Invoice
 from ui.widgets import (fill_category_combo, fill_trip_combo, fill_status_combo,
                         fmt_money)
+from ui.date_picker import DatePicker
 from ui.icons import icon as _icon
 import config
 
@@ -53,8 +54,7 @@ class InvoiceDialog(QDialog):
         self.tax.setDecimals(2)
         self.tax.setPrefix("¥")
         self.currency = QLineEdit("CNY")
-        self.date = QDateEdit()
-        self.date.setCalendarPopup(True)
+        self.date = DatePicker()
         self.date.setDisplayFormat("yyyy-MM-dd")
         self.date.setDate(QDate.currentDate())
         self.vendor = QLineEdit()

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit,
-                               QDateEdit, QDoubleSpinBox, QTextEdit, QDialogButtonBox,
+                               QDoubleSpinBox, QTextEdit, QDialogButtonBox,
                                QLabel, QGroupBox)
 from PySide6.QtCore import Qt, QDate
 
 from db.database import InvoiceDB
 from db.models import Trip
+from ui.date_picker import DatePicker
 
 
 class TripDialog(QDialog):
@@ -34,12 +35,10 @@ class TripDialog(QDialog):
         f.setContentsMargins(16, 18, 16, 16)
         self.name = QLineEdit()
         self.dest = QLineEdit()
-        self.start = QDateEdit()
-        self.start.setCalendarPopup(True)
+        self.start = DatePicker()
         self.start.setDisplayFormat("yyyy-MM-dd")
         self.start.setDate(QDate.currentDate())
-        self.end = QDateEdit()
-        self.end.setCalendarPopup(True)
+        self.end = DatePicker()
         self.end.setDisplayFormat("yyyy-MM-dd")
         self.end.setDate(QDate.currentDate())
         self.budget = QDoubleSpinBox()
