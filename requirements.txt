@@ -1,7 +1,7 @@
 # 差旅搭子 运行依赖
 # Python 3.10+ 推荐
 PySide6>=6.6
-pdfplumber>=3.0
+pdfplumber>=0.10
 pandas>=2.0
 openpyxl>=3.1
 requests>=2.28
