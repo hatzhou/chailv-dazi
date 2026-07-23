@@ -413,8 +413,10 @@ def apply_theme(app: QApplication):
 def chart_rcparams():
     """返回 matplotlib rcParams 字典（供 dashboard 统一图表风格）。"""
     return {
-        "font.sans-serif": ["Microsoft YaHei", "PingFang SC",
-                            "Noto Sans CJK SC", "WenQuanYi Micro Hei",
+        # 注意：matplotlib 读取 .ttc 字体集合时仅注册首个字形面（多为 JP），
+        # 故显式列入 Noto Sans CJK JP 以保证 Linux 环境下中文可正常渲染。
+        "font.sans-serif": ["Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC",
+                            "Noto Sans CJK JP", "WenQuanYi Micro Hei",
                             "Arial Unicode MS", "sans-serif"],
         "axes.unicode_minus": False,
         "figure.facecolor": "white",
