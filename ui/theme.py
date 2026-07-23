@@ -205,12 +205,44 @@ def stylesheet() -> str:
         background: {C['surface_2']};
         color: {C['text_3']};
     }}
+
+    /* --- 下拉框：现代化弹出层 --- */
+    QComboBox {{
+        padding: 6px 34px 6px 12px;   /* 右侧为默认箭头留出空间 */
+        min-height: 20px;
+    }}
+    QComboBox:on {{
+        border: 1px solid {C['brand']};
+    }}
+    QComboBox::drop-down {{
+        subcontrol-origin: padding;
+        subcontrol-position: center right;
+        width: 30px;
+        border: none;
+        background: transparent;
+    }}
+    /* 弹出层容器：圆角 + 细边 + 内边距，去掉复古的方框感 */
     QComboBox QAbstractItemView {{
         background: {C['surface']};
         border: 1px solid {C['border']};
-        selection-background-color: {C['brand_tint']};
-        selection-color: {C['brand']};
-        padding: 4px;
+        border-radius: 10px;
+        outline: 0;                         /* 去掉键盘聚焦的矩形描边 */
+        padding: 6px;                       /* 列表与边框的呼吸空间 */
+        selection-background-color: {C['brand']};
+        selection-color: #FFFFFF;
+    }}
+    /* 单个选项：舒适的行高与内边距，圆角行背景 */
+    QComboBox QAbstractItemView::item {{
+        background: transparent;
+        color: {C['text']};
+        padding: 9px 12px;
+        min-height: 20px;
+        border-radius: 6px;
+    }}
+    /* 鼠标悬停：中性浅底，与“已选中”形成层次区分 */
+    QComboBox QAbstractItemView::item:hover {{
+        background: {C['surface_2']};
+        color: {C['text']};
     }}
     QDateEdit::drop-calendar {{
         background: {C['surface']};
