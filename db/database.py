@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 import config
-from db.models import Category, Trip, Invoice, Attachment
+from db.models import Category, Trip, Invoice, Attachment, Mailbox
 
 
 def _now() -> str:
@@ -129,6 +129,19 @@ class InvoiceDB:
                 CREATE TABLE IF NOT EXISTS settings (
                     key   TEXT PRIMARY KEY,
                     value TEXT DEFAULT ''
+                );
+
+                CREATE TABLE IF NOT EXISTS mailboxes (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name        TEXT DEFAULT '',
+                    host        TEXT DEFAULT '',
+                    user        TEXT DEFAULT '',
+                    password    TEXT DEFAULT '',
+                    use_ssl     INTEGER DEFAULT 1,
+                    since_days  INTEGER DEFAULT 30,
+                    enabled     INTEGER DEFAULT 1,
+                    last_pull   TEXT DEFAULT '',
+                    created_at  TEXT DEFAULT ''
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_inv_category ON invoices(category_id);
@@ -446,6 +459,59 @@ class InvoiceDB:
             self._conn.commit()
 
     # ------------------------------------------------------------------ #
+    # 邮箱账号 mailboxes
+    # ------------------------------------------------------------------ #
+    def list_mailboxes(self) -> List[Mailbox]:
+        cur = self._execute("SELECT * FROM mailboxes ORDER BY id")
+        return [Mailbox(**self._row_to_dict(r)) for r in cur.fetchall()]
+
+    def get_mailbox(self, mb_id: int) -> Optional[Mailbox]:
+        cur = self._execute("SELECT * FROM mailboxes WHERE id=?", (mb_id,))
+        r = cur.fetchone()
+        return Mailbox(**self._row_to_dict(r)) if r else None
+
+    def create_mailbox(self, mb: Mailbox) -> int:
+        with self._lock:
+            cur = self._execute(
+                """INSERT INTO mailboxes(name, host, user, password, use_ssl,
+                                         since_days, enabled, last_pull, created_at)
+                   VALUES(?,?,?,?,?,?,?,?,?)""",
+                (mb.name, mb.host, mb.user, mb.password,
+                 1 if mb.use_ssl else 0, mb.since_days,
+                 1 if mb.enabled else 0, mb.last_pull or "", _now()),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def update_mailbox(self, mb: Mailbox):
+        with self._lock:
+            self._execute(
+                """UPDATE mailboxes SET name=?, host=?, user=?, password=?,
+                       use_ssl=?, since_days=?, enabled=? WHERE id=?""",
+                (mb.name, mb.host, mb.user, mb.password,
+                 1 if mb.use_ssl else 0, mb.since_days,
+                 1 if mb.enabled else 0, mb.id),
+            )
+            self._conn.commit()
+
+    def delete_mailbox(self, mb_id: int):
+        with self._lock:
+            self._execute("DELETE FROM mailboxes WHERE id=?", (mb_id,))
+            self._conn.commit()
+
+    def set_mailbox_last_pull(self, mb_id: int, ts: str):
+        with self._lock:
+            self._execute("UPDATE mailboxes SET last_pull=? WHERE id=?",
+                          (ts, mb_id))
+            self._conn.commit()
+
+    def set_attachment_dir(self, path: str):
+        """更新附件（下载文件）存储目录并即时生效。"""
+        os.makedirs(path, exist_ok=True)
+        self.attachment_dir = path
+        self.set_setting("attachment_dir", path)
+
+    # ------------------------------------------------------------------ #
     # 统计 stats
     # ------------------------------------------------------------------ #
     def stats_summary(self) -> Dict[str, Any]:
@@ -513,5 +579,10 @@ _db_instance: Optional[InvoiceDB] = None
 def get_db() -> InvoiceDB:
     global _db_instance
     if _db_instance is None:
-        _db_instance = InvoiceDB()
+        db = InvoiceDB()
+        # 应用已保存的文件存储位置（设置项可覆盖默认目录）
+        saved = db.get_setting("attachment_dir", "")
+        if saved:
+            db.set_attachment_dir(saved)
+        _db_instance = db
     return _db_instance

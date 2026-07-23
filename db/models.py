@@ -52,6 +52,21 @@ class Attachment:
 
 
 @dataclass
+class Mailbox:
+    """邮箱拉取账号（可配置多个）。"""
+    id: Optional[int] = None
+    name: str = ""            # 备注名（如「工作邮箱」）
+    host: str = ""            # IMAP 服务器
+    user: str = ""            # 邮箱账号
+    password: str = ""        # 密码 / 授权码
+    use_ssl: bool = True
+    since_days: int = 30      # 检索近 N 天
+    enabled: bool = True      # 是否参与「拉取全部」
+    last_pull: str = ""       # 最近成功拉取时间
+    created_at: str = ""
+
+
+@dataclass
 class Invoice:
     id: Optional[int] = None
     invoice_code: str = ""        # 发票代码

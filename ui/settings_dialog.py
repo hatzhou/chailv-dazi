@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-"""差旅搭子 - 设置对话框（数据目录、关于）。"""
+"""差旅搭子 - 设置对话框（数据存储位置、发票识别、关于）。"""
 from __future__ import annotations
 
 import os
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLabel,
-                               QPushButton, QDialogButtonBox, QMessageBox, QGroupBox)
+                               QPushButton, QDialogButtonBox, QMessageBox, QGroupBox,
+                               QLineEdit, QHBoxLayout, QFileDialog)
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 
@@ -17,7 +18,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.db = db
         self.setWindowTitle("设置 / 关于")
-        self.resize(480, 360)
+        self.resize(520, 400)
         self._build()
 
     def _build(self):
@@ -26,12 +27,22 @@ class SettingsDialog(QDialog):
         g1 = QGroupBox("数据存储")
         f1 = QFormLayout(g1)
         f1.addRow("数据库文件", QLabel(config.DB_PATH))
-        f1.addRow("附件目录", QLabel(config.ATTACHMENT_DIR))
-        f1.addRow("说明", QLabel("数据均保存在本机，未上传云端。\n"
+        # 文件存储位置（可编辑）
+        self.storage_edit = QLineEdit(self.db.get_setting("attachment_dir", config.ATTACHMENT_DIR))
+        browse = QPushButton(" 浏览")
+        browse.setIcon(self._icon("file", "#475569", 15))
+        browse.clicked.connect(self._browse_storage)
+        storage_row = QHBoxLayout()
+        storage_row.addWidget(self.storage_edit, 1)
+        storage_row.addWidget(browse)
+        f1.addRow("文件存储位置", storage_row)
+        f1.addRow("说明", QLabel("下载 / 导入的发票原件（PDF、图片等）\n"
+                              "会保存到此处；修改后新文件将存入新位置。\n"
                               "修改数据目录需退出后编辑启动配置并重启。"))
-        btn_open = QPushButton("打开数据目录")
+        btn_open = QPushButton(" 打开存储目录")
+        btn_open.setIcon(self._icon("folder", "#475569", 15))
         btn_open.clicked.connect(lambda: QDesktopServices.openUrl(
-            QUrl.fromLocalFile(os.path.dirname(config.DB_PATH))))
+            QUrl.fromLocalFile(self.storage_edit.text())))
         f1.addRow("", btn_open)
         root.addWidget(g1)
 
@@ -53,5 +64,26 @@ class SettingsDialog(QDialog):
         root.addStretch(1)
 
         bb = QDialogButtonBox(QDialogButtonBox.Close)
-        bb.rejected.connect(self.reject)
+        bb.button(QDialogButtonBox.Close).setText(" 关闭")
+        bb.rejected.connect(self._save_and_close)
         root.addWidget(bb)
+
+    def _icon(self, name, color, size):
+        from ui.icons import icon as _icon
+        return _icon(name, color, size)
+
+    def _browse_storage(self):
+        path = QFileDialog.getExistingDirectory(
+            self, "选择文件存储位置", self.storage_edit.text() or os.path.expanduser("~"))
+        if path:
+            self.storage_edit.setText(path)
+
+    def _save_and_close(self):
+        path = self.storage_edit.text().strip()
+        if path:
+            try:
+                self.db.set_attachment_dir(path)
+            except Exception as e:
+                QMessageBox.warning(self, "设置失败", f"无法使用该目录：{e}")
+                return
+        self.reject()
