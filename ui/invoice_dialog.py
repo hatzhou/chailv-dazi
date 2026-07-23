@@ -6,7 +6,7 @@ import os
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
                                QLineEdit, QComboBox, QDateEdit, QTextEdit, QPushButton,
                                QLabel, QDialogButtonBox, QListWidget, QFileDialog,
-                               QMessageBox, QDoubleSpinBox)
+                               QMessageBox, QDoubleSpinBox, QGroupBox)
 from PySide6.QtCore import Qt, QDate, QUrl
 from PySide6.QtGui import QDesktopServices
 
@@ -14,6 +14,7 @@ from db.database import InvoiceDB
 from db.models import Invoice
 from ui.widgets import (fill_category_combo, fill_trip_combo, fill_status_combo,
                         fmt_money)
+from ui.icons import icon as _icon
 import config
 
 
@@ -31,9 +32,14 @@ class InvoiceDialog(QDialog):
 
     def _build(self):
         root = QVBoxLayout(self)
-        form = QFormLayout()
+        root.setContentsMargins(18, 18, 18, 18)
+        root.setSpacing(12)
+
+        g = QGroupBox("发票信息")
+        form = QFormLayout(g)
         form.setLabelAlignment(Qt.AlignRight)
-        form.setSpacing(8)
+        form.setSpacing(10)
+        form.setContentsMargins(16, 18, 16, 16)
 
         self.code = QLineEdit()
         self.number = QLineEdit()
@@ -82,19 +88,22 @@ class InvoiceDialog(QDialog):
         form.addRow("状态", self.status)
         form.addRow("支付方式", self.pay)
         form.addRow("备注", self.note)
-        root.addLayout(form)
+        root.addWidget(g)
 
         # 附件
         att_label = QLabel("附件（原图 / PDF）")
-        att_label.setStyleSheet("font-weight:bold;")
+        att_label.setStyleSheet("font-weight:bold;color:#475569;")
         root.addWidget(att_label)
         self.att_list = QListWidget()
         self.att_list.itemDoubleClicked.connect(self._open_att)
         root.addWidget(self.att_list, 1)
         att_bar = QHBoxLayout()
-        self.btn_add_att = QPushButton("添加附件")
+        self.btn_add_att = QPushButton(" 添加附件")
+        self.btn_add_att.setIcon(_icon("plus", "#475569", 15))
         self.btn_add_att.clicked.connect(self._add_att)
-        self.btn_del_att = QPushButton("移除选中")
+        self.btn_del_att = QPushButton(" 移除选中")
+        self.btn_del_att.setObjectName("danger")
+        self.btn_del_att.setIcon(_icon("trash", "#DC2626", 15))
         self.btn_del_att.clicked.connect(self._del_att)
         att_bar.addWidget(self.btn_add_att)
         att_bar.addWidget(self.btn_del_att)
@@ -103,6 +112,9 @@ class InvoiceDialog(QDialog):
 
         # 按钮
         bb = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        bb.button(QDialogButtonBox.Save).setObjectName("primary")
+        bb.button(QDialogButtonBox.Save).setText(" 保存")
+        bb.button(QDialogButtonBox.Cancel).setText(" 取消")
         bb.accepted.connect(self._accept)
         bb.rejected.connect(self.reject)
         root.addWidget(bb)

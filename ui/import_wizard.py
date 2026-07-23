@@ -20,6 +20,7 @@ from importers.url_importer import fetch_url_invoice
 from importers.save import save_draft
 from ui.widgets import (fill_category_combo, fill_trip_combo, fmt_money,
                         status_label)
+from ui.icons import icon as _icon
 import config
 
 
@@ -50,9 +51,9 @@ class ImportWizard(QDialog):
     def _build(self):
         root = QVBoxLayout(self)
         self.tabs = QTabWidget()
-        self.tabs.addTab(self._tab_local(), "本地文件")
-        self.tabs.addTab(self._tab_email(), "邮件导入")
-        self.tabs.addTab(self._tab_url(), "链接下载")
+        self.tabs.addTab(self._tab_local(), _icon("file", "#475569", 18), "本地文件")
+        self.tabs.addTab(self._tab_email(), _icon("inbox", "#475569", 18), "邮件导入")
+        self.tabs.addTab(self._tab_url(), _icon("download", "#475569", 18), "链接下载")
         root.addWidget(self.tabs, 1)
 
         # 解析结果预览
@@ -77,7 +78,9 @@ class ImportWizard(QDialog):
                         include_none=True, none_text="不归集（仅入库）")
         bottom.addWidget(self.trip_combo)
         bottom.addStretch(1)
-        self.btn_import = QPushButton("确认导入选中")
+        self.btn_import = QPushButton(" 确认导入选中")
+        self.btn_import.setObjectName("primary")
+        self.btn_import.setIcon(_icon("upload", "#FFFFFF", 16))
         self.btn_import.clicked.connect(self._do_import)
         self.btn_import.setEnabled(False)
         bottom.addWidget(self.btn_import)
@@ -90,9 +93,12 @@ class ImportWizard(QDialog):
         bar = QHBoxLayout()
         self.local_list = QLabel("尚未选择文件")
         self.local_list.setStyleSheet("color:#888;")
-        btn_sel = QPushButton("选择文件（可多选）")
+        btn_sel = QPushButton(" 选择文件（可多选）")
+        btn_sel.setIcon(_icon("file", "#475569", 16))
         btn_sel.clicked.connect(self._pick_local)
-        btn_parse = QPushButton("开始解析")
+        btn_parse = QPushButton(" 开始解析")
+        btn_parse.setObjectName("primary")
+        btn_parse.setIcon(_icon("upload", "#FFFFFF", 16))
         btn_parse.clicked.connect(self._parse_local)
         bar.addWidget(btn_sel)
         bar.addWidget(btn_parse)
@@ -149,7 +155,9 @@ class ImportWizard(QDialog):
         f.addRow("检索近 N 天", self.email_days)
         f.addRow("加密", self.email_ssl)
         bar = QHBoxLayout()
-        self.btn_fetch = QPushButton("拉取发票附件")
+        self.btn_fetch = QPushButton(" 拉取发票附件")
+        self.btn_fetch.setObjectName("primary")
+        self.btn_fetch.setIcon(_icon("inbox", "#FFFFFF", 16))
         self.btn_fetch.clicked.connect(self._fetch_email)
         bar.addWidget(self.btn_fetch)
         bar.addStretch(1)
@@ -195,7 +203,9 @@ class ImportWizard(QDialog):
         f.addRow("发票链接", self.url_edit)
         v.addLayout(f)
         bar = QHBoxLayout()
-        btn = QPushButton("解析链接")
+        btn = QPushButton(" 解析链接")
+        btn.setObjectName("primary")
+        btn.setIcon(_icon("download", "#FFFFFF", 16))
         btn.clicked.connect(self._parse_url)
         bar.addWidget(btn)
         bar.addStretch(1)

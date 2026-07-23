@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit,
                                QDateEdit, QDoubleSpinBox, QTextEdit, QDialogButtonBox,
-                               QLabel)
+                               QLabel, QGroupBox)
 from PySide6.QtCore import Qt, QDate
 
 from db.database import InvoiceDB
@@ -25,8 +25,13 @@ class TripDialog(QDialog):
 
     def _build(self):
         root = QVBoxLayout(self)
-        f = QFormLayout()
+        root.setContentsMargins(18, 18, 18, 18)
+        root.setSpacing(12)
+        g = QGroupBox("行程信息")
+        f = QFormLayout(g)
         f.setLabelAlignment(Qt.AlignRight)
+        f.setSpacing(10)
+        f.setContentsMargins(16, 18, 16, 16)
         self.name = QLineEdit()
         self.dest = QLineEdit()
         self.start = QDateEdit()
@@ -49,8 +54,11 @@ class TripDialog(QDialog):
         f.addRow("结束日期", self.end)
         f.addRow("预算", self.budget)
         f.addRow("备注", self.note)
-        root.addLayout(f)
+        root.addWidget(g)
         bb = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        bb.button(QDialogButtonBox.Save).setObjectName("primary")
+        bb.button(QDialogButtonBox.Save).setText(" 保存")
+        bb.button(QDialogButtonBox.Cancel).setText(" 取消")
         bb.accepted.connect(self._accept)
         bb.rejected.connect(self.reject)
         root.addWidget(bb)

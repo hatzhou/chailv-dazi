@@ -9,6 +9,8 @@ from PySide6.QtGui import QFont
 
 from db.database import get_db
 from ui.main_window import MainWindow
+from ui.theme import apply_theme
+from ui.icons import icon as _icon
 import config
 
 
@@ -17,10 +19,9 @@ def main():
     app.setApplicationName(config.APP_NAME)
     app.setApplicationDisplayName(config.APP_NAME)
 
-    # 统一外观
-    app.setStyle("Fusion")
-    font = QFont("Microsoft YaHei, PingFang SC, Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif", 10)
-    app.setFont(font)
+    # 统一外观（设计系统：蓝青主题 + Fusion）
+    apply_theme(app)
+    app.setWindowIcon(_icon("plane", "#2563EB", 64))
 
     db = get_db()
     win = MainWindow(db)

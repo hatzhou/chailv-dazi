@@ -4,14 +4,17 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
                                QTableWidgetItem, QLineEdit, QPushButton, QComboBox,
-                               QDateEdit, QLabel, QHeaderView, QMessageBox, QFrame)
+                               QDateEdit, QLabel, QHeaderView, QMessageBox, QFrame,
+                               QStackedWidget)
 from PySide6.QtCore import Qt, Signal, QDate
 from PySide6.QtGui import QColor
 
 from db.database import InvoiceDB
 from db.models import Invoice
 from ui.widgets import (fill_category_combo, fill_trip_combo, fill_status_combo,
-                        fmt_money, status_label, status_color)
+                        fmt_money, status_label, status_color, StatusBadge,
+                        EmptyState, primary_button)
+from ui.icons import icon as _icon
 
 COLUMNS = ["状态", "发票号码", "分类", "金额", "税额", "开票日期",
            "销售方", "行程", "来源"]
@@ -20,6 +23,7 @@ COLUMNS = ["状态", "发票号码", "分类", "金额", "税额", "开票日期
 class InvoiceList(QWidget):
     open_requested = Signal(int)   # 双击打开详情
     changed = Signal()             # 数据变更后通知（刷新仪表盘等）
+    import_requested = Signal()    # 空状态引导导入
 
     def __init__(self, db: InvoiceDB):
         super().__init__()
@@ -29,8 +33,8 @@ class InvoiceList(QWidget):
 
     def _build(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(16, 12, 16, 12)
-        root.setSpacing(10)
+        root.setContentsMargins(20, 16, 20, 16)
+        root.setSpacing(12)
 
         # 筛选栏
         fbar = QHBoxLayout()
@@ -49,9 +53,11 @@ class InvoiceList(QWidget):
         self.date_to.setCalendarPopup(True)
         self.date_to.setDisplayFormat("yyyy-MM-dd")
         self.date_to.setDate(QDate.currentDate())
-        btn_filter = QPushButton("筛选")
+        btn_filter = QPushButton(" 筛选")
+        btn_filter.setIcon(_icon("filter", "#475569", 16))
         btn_filter.clicked.connect(self.refresh)
-        btn_reset = QPushButton("重置")
+        btn_reset = QPushButton(" 重置")
+        btn_reset.setIcon(_icon("refresh", "#475569", 16))
         btn_reset.clicked.connect(self._reset_filters)
 
         fbar.addWidget(QLabel("关键字"))
@@ -73,16 +79,21 @@ class InvoiceList(QWidget):
         # 操作栏
         abar = QHBoxLayout()
         abar.setSpacing(8)
-        self.btn_add = QPushButton("＋ 手工新增")
+        self.btn_add = primary_button(" 手工新增")
+        self.btn_add.setIcon(_icon("plus", "#FFFFFF", 16))
         self.btn_add.clicked.connect(self._add)
-        self.btn_edit = QPushButton("编辑")
+        self.btn_edit = QPushButton(" 编辑")
+        self.btn_edit.setIcon(_icon("edit", "#475569", 16))
         self.btn_edit.clicked.connect(self._edit_selected)
-        self.btn_del = QPushButton("删除")
+        self.btn_del = QPushButton(" 删除")
+        self.btn_del.setObjectName("danger")
+        self.btn_del.setIcon(_icon("trash", "#DC2626", 16))
         self.btn_del.clicked.connect(self._delete_selected)
-        self.btn_refresh = QPushButton("刷新")
+        self.btn_refresh = QPushButton(" 刷新")
+        self.btn_refresh.setIcon(_icon("refresh", "#475569", 16))
         self.btn_refresh.clicked.connect(self.refresh)
         self.lbl_count = QLabel("")
-        self.lbl_count.setStyleSheet("color:#888;")
+        self.lbl_count.setStyleSheet(f"color:#94A3B8;")
         abar.addWidget(self.btn_add)
         abar.addWidget(self.btn_edit)
         abar.addWidget(self.btn_del)
@@ -91,7 +102,8 @@ class InvoiceList(QWidget):
         abar.addWidget(self.lbl_count)
         root.addLayout(abar)
 
-        # 表格
+        # 表格 + 空状态（二选一显示）
+        self.stack = QStackedWidget()
         self.table = QTableWidget(0, len(COLUMNS))
         self.table.setHorizontalHeaderLabels(COLUMNS)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -100,10 +112,19 @@ class InvoiceList(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.doubleClicked.connect(self._on_double)
         hdr = self.table.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         hdr.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         hdr.setSectionResizeMode(6, QHeaderView.Stretch)
         hdr.setSectionResizeMode(8, QHeaderView.ResizeToContents)
-        root.addWidget(self.table, 1)
+        self.stack.addWidget(self.table)
+
+        self.empty = EmptyState(
+            icon_name="inbox", title="还没有发票",
+            subtitle="导入本地 PDF / 邮件 / 链接，或手工新增一张",
+            action_text="导入发票", on_action=lambda: self.import_requested.emit())
+        self.stack.addWidget(self.empty)
+        root.addWidget(self.stack, 1)
 
     def _reset_filters(self):
         self.search.clear()
@@ -137,7 +158,7 @@ class InvoiceList(QWidget):
         if trip_id is not None and trip_id != -1:
             f["trip_id"] = trip_id
         elif trip_id == -1:
-            f["trip_id"] = None  # 未归集（此场景简化：不过滤）
+            f["trip_id"] = None
         st = self.status.currentData()
         if st:
             f["status"] = st
@@ -148,12 +169,17 @@ class InvoiceList(QWidget):
     def refresh(self):
         cats = self.db.list_categories()
         trips = self.db.list_trips()
-        # 保留当前选择
         fill_category_combo(self.cat, cats, include_all=True)
         fill_trip_combo(self.trip, trips, include_all=True, include_none=True)
         fill_status_combo(self.status, include_all=True)
 
         rows = self.db.list_invoices(self._current_filters())
+        if not rows:
+            self.stack.setCurrentIndex(1)
+            self.lbl_count.setText("共 0 张发票")
+            self._rows = []
+            return
+        self.stack.setCurrentIndex(0)
         self.table.setRowCount(len(rows))
         for i, inv in enumerate(rows):
             self._set_row(i, inv)
@@ -161,8 +187,8 @@ class InvoiceList(QWidget):
         self._rows = rows
 
     def _set_row(self, i, inv: Invoice):
-        self.table.setItem(i, 0, self._cell(status_label(inv.status),
-                                            color=status_color(inv.status)))
+        badge = StatusBadge(inv.status)
+        self.table.setCellWidget(i, 0, badge)
         self.table.setItem(i, 1, self._cell(inv.invoice_number or "-"))
         self.table.setItem(i, 2, self._cell(f"{inv.category_icon} {inv.category_name}"))
         amt = self._cell(fmt_money(inv.amount))
@@ -175,26 +201,21 @@ class InvoiceList(QWidget):
         self.table.setItem(i, 6, self._cell(inv.vendor_name or "-"))
         self.table.setItem(i, 7, self._cell(inv.trip_name or "-"))
         self.table.setItem(i, 8, self._cell(inv.source_label))
-        self.table.setRowHeight(i, 30)
+        self.table.setRowHeight(i, 36)
 
     def _cell(self, text, color: QColor = None) -> QTableWidgetItem:
         it = QTableWidgetItem(str(text))
         if color:
             it.setForeground(color)
-            it.setFont(self._bold(color))
+            from PySide6.QtGui import QFont
+            f = QFont()
+            f.setBold(True)
+            it.setFont(f)
         return it
-
-    def _bold(self, color):
-        from PySide6.QtGui import QFont
-        f = QFont()
-        f.setBold(True)
-        return f
 
     def _selected_id(self):
         idx = self.table.currentRow()
-        if idx < 0 or not hasattr(self, "_rows"):
-            return None
-        if idx >= len(self._rows):
+        if idx < 0 or not hasattr(self, "_rows") or idx >= len(self._rows):
             return None
         return self._rows[idx].id
 

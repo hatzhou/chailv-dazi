@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
-"""差旅搭子 - 主窗口。"""
+"""差旅搭子 - 主窗口（侧边栏导航 + 顶部操作条 + 堆叠页）。"""
 from __future__ import annotations
 
 import os
-from PySide6.QtWidgets import (QMainWindow, QStackedWidget, QToolBar, QMenuBar,
+from PySide6.QtWidgets import (QMainWindow, QStackedWidget, QMenuBar, QToolBar,
                                QMessageBox, QFileDialog, QStatusBar, QWidget,
                                QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
-                               QTableWidgetItem, QHeaderView, QLabel, QFrame)
-from PySide6.QtCore import Qt
+                               QTableWidgetItem, QHeaderView, QLabel, QFrame,
+                               QSizePolicy, QSpacerItem)
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QAction, QKeySequence, QIcon
 
 from db.database import InvoiceDB
@@ -17,8 +18,18 @@ from ui.invoice_table import InvoiceList
 from ui.import_wizard import ImportWizard
 from ui.trip_dialog import TripDialog
 from ui.settings_dialog import SettingsDialog
-from ui.widgets import fmt_money, empty_hint
+from ui.widgets import (fmt_money, NavButton, icon_chip)
+from ui.icons import icon as _icon
+from ui.theme import C
 import config
+
+
+# 各页元信息（标题 / 副标题 / 图标）
+_PAGES = [
+    ("dashboard", "仪表盘", "报销全景 · 分类占比 · 月度趋势", "dashboard"),
+    ("invoice",   "发票",   "全部发票集中管理与归集",        "receipt"),
+    ("trip",      "行程",   "按行程归集 · 预算管控",          "plane"),
+]
 
 
 class MainWindow(QMainWindow):
@@ -26,14 +37,52 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.db = db
         self.setWindowTitle(f"{config.APP_NAME} v{config.APP_VERSION}")
-        self.resize(1080, 720)
+        self.resize(1120, 740)
         self._build_ui()
         self._refresh_status()
+        self.nav(0)
 
     # --------------------------- UI --------------------------- #
     def _build_ui(self):
+        self._build_menubar()
+
+        root = QWidget()
+        root_layout = QHBoxLayout(root)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        # ---- 侧边栏 ----
+        sidebar = self._build_sidebar()
+        root_layout.addWidget(sidebar, 0)
+
+        # ---- 右侧内容区 ----
+        content = QVBoxLayout()
+        content.setContentsMargins(0, 0, 0, 0)
+        content.setSpacing(0)
+
+        topbar = self._build_topbar()
+        content.addWidget(topbar, 0)
+
+        self.stack = QStackedWidget()
+        self.dashboard = Dashboard(self.db)
+        self.invoice_list = InvoiceList(self.db)
+        self.trips_page = self._build_trips_page()
+        self.stack.addWidget(self.dashboard)
+        self.stack.addWidget(self.invoice_list)
+        self.stack.addWidget(self.trips_page)
+        content.addWidget(self.stack, 1)
+
+        root_layout.addLayout(content, 1)
+        self.setCentralWidget(root)
+
+        self.invoice_list.open_requested.connect(self._on_open_invoice)
+        self.invoice_list.changed.connect(self._on_data_changed)
+        self.invoice_list.import_requested.connect(self.open_import)
+
+        self.setStatusBar(QStatusBar())
+
+    def _build_menubar(self):
         menubar = self.menuBar()
-        # 文件
         fmenu = menubar.addMenu("文件")
         a_import = fmenu.addAction("导入发票...")
         a_import.setShortcut(QKeySequence("Ctrl+I"))
@@ -45,61 +94,112 @@ class MainWindow(QMainWindow):
         fmenu.addSeparator()
         a_exit = fmenu.addAction("退出")
         a_exit.triggered.connect(self.close)
-        # 管理
-        mmenu = menubar.addMenu("管理")
-        a_trip = mmenu.addAction("行程管理")
-        a_trip.triggered.connect(lambda: self.nav(2))
-        a_set = mmenu.addAction("设置 / 关于")
-        a_set.triggered.connect(self.open_settings)
-        # 帮助
+
         hmenu = menubar.addMenu("帮助")
         a_about = hmenu.addAction("关于差旅搭子")
         a_about.triggered.connect(self.about)
 
-        # 工具栏
-        tb = QToolBar("主工具栏")
-        self.addToolBar(tb)
-        self.act_dash = tb.addAction("📊 仪表盘")
-        self.act_inv = tb.addAction("🧾 发票")
-        self.act_trip = tb.addAction("✈ 行程")
-        tb.addSeparator()
-        self.act_import = tb.addAction("⬆ 导入")
-        self.act_new_trip = tb.addAction("＋ 新建行程")
-        self.act_export = tb.addAction("⬇ 导出")
-        self.act_dash.triggered.connect(lambda: self.nav(0))
-        self.act_inv.triggered.connect(lambda: self.nav(1))
-        self.act_trip.triggered.connect(lambda: self.nav(2))
-        self.act_import.triggered.connect(self.open_import)
-        self.act_new_trip.triggered.connect(self.new_trip)
-        self.act_export.triggered.connect(lambda: self.export_file("xlsx"))
+    def _build_sidebar(self):
+        sb = QWidget()
+        sb.setObjectName("sidebar")
+        sb.setFixedWidth(224)
+        v = QVBoxLayout(sb)
+        v.setContentsMargins(14, 16, 14, 16)
+        v.setSpacing(4)
 
-        # 中央堆叠
-        self.stack = QStackedWidget()
-        self.dashboard = Dashboard(self.db)
-        self.invoice_list = InvoiceList(self.db)
-        self.trips_page = self._build_trips_page()
-        self.stack.addWidget(self.dashboard)
-        self.stack.addWidget(self.invoice_list)
-        self.stack.addWidget(self.trips_page)
-        self.setCentralWidget(self.stack)
+        # Logo
+        logo_row = QHBoxLayout()
+        logo = icon_chip("plane", "#FFFFFF", 22, 40)
+        logo.setStyleSheet(f"background:{C['brand']};border-radius:10px;")
+        name = QLabel("差旅搭子")
+        name.setObjectName("sidebarLogo")
+        sub = QLabel("差旅发票管理")
+        sub.setObjectName("sidebarLogoSub")
+        logo_row.addWidget(logo)
+        logo_row.addWidget(name)
+        logo_row.addStretch(1)
+        v.addLayout(logo_row)
+        v.addSpacing(4)
+        v.addWidget(sub)
+        v.addSpacing(14)
 
-        self.invoice_list.open_requested.connect(self._on_open_invoice)
-        self.invoice_list.changed.connect(self._on_data_changed)
+        # 导航
+        self._nav_btns = []
+        for key, title, _, ic in _PAGES:
+            btn = NavButton(ic, title)
+            btn.clicked.connect(lambda _checked, k=key: self._nav_to(k))
+            v.addWidget(btn)
+            self._nav_btns.append((key, btn))
+        v.addStretch(1)
 
-        self.setStatusBar(QStatusBar())
+        # 底部：设置
+        self.btn_settings = NavButton("settings", "设置 / 关于")
+        self.btn_settings.clicked.connect(self.open_settings)
+        v.addWidget(self.btn_settings)
+        return sb
+
+    def _nav_to(self, key: str):
+        idx = next(i for i, (k, _) in enumerate(self._nav_btns) if k == key)
+        self.nav(idx)
+
+    def _build_topbar(self):
+        bar = QWidget()
+        bar.setObjectName("topbar")
+        bar.setFixedHeight(60)
+        h = QHBoxLayout(bar)
+        h.setContentsMargins(20, 0, 20, 0)
+        h.setSpacing(10)
+
+        self.page_title = QLabel()
+        self.page_title.setObjectName("pageTitle")
+        self.page_subtitle = QLabel()
+        self.page_subtitle.setObjectName("pageSubtitle")
+        title_col = QVBoxLayout()
+        title_col.setSpacing(2)
+        title_col.addWidget(self.page_title)
+        title_col.addWidget(self.page_subtitle)
+        h.addLayout(title_col)
+        h.addStretch(1)
+
+        self.act_import = QPushButton(" 导入发票")
+        self.act_import.setObjectName("primary")
+        self.act_import.setIcon(_icon("upload", "#FFFFFF", 18))
+        self.act_import.clicked.connect(self.open_import)
+
+        self.act_new_trip = QPushButton(" 新建行程")
+        self.act_new_trip.setIcon(_icon("plus", C["text_2"], 18))
+        self.act_new_trip.clicked.connect(self.new_trip)
+
+        self.act_export = QPushButton(" 导出")
+        self.act_export.setIcon(_icon("download", C["text_2"], 18))
+        self.act_export.clicked.connect(lambda: self.export_file("xlsx"))
+
+        h.addWidget(self.act_import)
+        h.addWidget(self.act_new_trip)
+        h.addWidget(self.act_export)
+        return bar
 
     def _build_trips_page(self):
         w = QWidget()
         v = QVBoxLayout(w)
-        v.setContentsMargins(16, 12, 16, 12)
+        v.setContentsMargins(20, 16, 20, 16)
+        v.setSpacing(12)
+
         bar = QHBoxLayout()
-        self.btn_trip_add = QPushButton("＋ 新建行程")
+        bar.setSpacing(8)
+        self.btn_trip_add = QPushButton(" 新建行程")
+        self.btn_trip_add.setObjectName("primary")
+        self.btn_trip_add.setIcon(_icon("plus", "#FFFFFF", 18))
         self.btn_trip_add.clicked.connect(self.new_trip)
-        self.btn_trip_edit = QPushButton("编辑")
+        self.btn_trip_edit = QPushButton(" 编辑")
+        self.btn_trip_edit.setIcon(_icon("edit", C["text_2"], 16))
         self.btn_trip_edit.clicked.connect(self._edit_trip)
-        self.btn_trip_del = QPushButton("删除")
+        self.btn_trip_del = QPushButton(" 删除")
+        self.btn_trip_del.setObjectName("danger")
+        self.btn_trip_del.setIcon(_icon("trash", C["danger"], 16))
         self.btn_trip_del.clicked.connect(self._del_trip)
-        self.btn_trip_view = QPushButton("查看该行程发票")
+        self.btn_trip_view = QPushButton(" 查看该行程发票")
+        self.btn_trip_view.setIcon(_icon("receipt", C["text_2"], 16))
         self.btn_trip_view.clicked.connect(self._view_trip_invoices)
         bar.addWidget(self.btn_trip_add)
         bar.addWidget(self.btn_trip_edit)
@@ -125,6 +225,11 @@ class MainWindow(QMainWindow):
     # --------------------------- 导航 --------------------------- #
     def nav(self, idx: int):
         self.stack.setCurrentIndex(idx)
+        for i, (key, btn) in enumerate(self._nav_btns):
+            btn.set_active(i == idx)
+        _, title, sub, _ = _PAGES[idx]
+        self.page_title.setText(title)
+        self.page_subtitle.setText(sub)
         if idx == 0:
             self.dashboard.refresh()
         elif idx == 1:
@@ -200,17 +305,17 @@ class MainWindow(QMainWindow):
         stats = {r["trip_id"]: r for r in self.db.stats_by_trip()}
         for i, t in enumerate(trips):
             s = stats.get(t.id, {"total": 0, "cnt": 0})
-            self.trip_table.setItem(i, 0, QTableWidgetItem(t.name))
-            self.trip_table.setItem(i, 1, QTableWidgetItem(t.destination))
-            self.trip_table.setItem(i, 2, QTableWidgetItem(t.date_range))
-            b = QTableWidgetItem(fmt_money(t.budget))
+            self.trip_table.setItem(i, 0, self._cell(t.name))
+            self.trip_table.setItem(i, 1, self._cell(t.destination))
+            self.trip_table.setItem(i, 2, self._cell(t.date_range))
+            b = self._cell(fmt_money(t.budget))
             b.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.trip_table.setItem(i, 3, b)
-            amt = QTableWidgetItem(fmt_money(s["total"]))
+            amt = self._cell(fmt_money(s["total"]))
             amt.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.trip_table.setItem(i, 4, amt)
-            self.trip_table.setItem(i, 5, QTableWidgetItem(str(s["cnt"])))
-            self.trip_table.setRowHeight(i, 30)
+            self.trip_table.setItem(i, 5, self._cell(str(s["cnt"])))
+            self.trip_table.setRowHeight(i, 36)
 
     # --------------------------- 导出 --------------------------- #
     def export_file(self, kind: str):
@@ -265,6 +370,17 @@ class MainWindow(QMainWindow):
             f"发票 {s['total_count']} 张　|　总金额 {fmt_money(s['total_amount'])}　"
             f"|　待报销 {fmt_money(s['pending_amount'])}　"
             f"|　已报销 {fmt_money(s['reimbursed_amount'])}")
+
+    @staticmethod
+    def _cell(text, color: QColor = None):
+        from PySide6.QtGui import QFont
+        it = QTableWidgetItem(str(text))
+        if color:
+            it.setForeground(color)
+            f = QFont()
+            f.setBold(True)
+            it.setFont(f)
+        return it
 
 
 def _stamp():
