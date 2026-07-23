@@ -20,18 +20,25 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 block_cipher = None
 
 # 隐式导入：matplotlib 后端 + PySide6 模块
+# 注意：不显式列 pypdf（pdfplumber 会按需拉入，显式列会导致 CI 上找不到时报错）
 hiddenimports = []
 hiddenimports += collect_submodules('matplotlib.backends')
 hiddenimports += collect_submodules('PySide6.QtSvg')
 hiddenimports += collect_submodules('PySide6.QtSvgWidgets')
-hiddenimports += ['pdfplumber', 'pypdf', 'openpyxl', 'reportlab']
+hiddenimports += ['pdfplumber', 'openpyxl', 'reportlab']
 
-# 资源文件：matplotlib 字体 + PySide6 插件
+# 资源文件：matplotlib 字体 + 手册截图 + 文档
 datas = []
 datas += collect_data_files('matplotlib', include_py_files=False)
-datas += [(('assets/manual', 'assets/manual'))]
-# 确保 docs 目录也打入（操作手册等）
-datas += [('docs', 'docs')]
+# 仅当目录存在时打入，避免 CI 报错
+if os.path.isdir('assets/manual'):
+    datas += [('assets/manual', 'assets/manual')]
+if os.path.isdir('docs'):
+    datas += [('docs', 'docs')]
+
+# 图标（可选，不存在则用默认）
+_icon_win = 'assets/icon.ico' if os.path.exists('assets/icon.ico') else None
+_icon_mac = 'assets/icon.icns' if os.path.exists('assets/icon.icns') else None
 
 # 入口
 a = Analysis(
@@ -67,14 +74,14 @@ if sys.platform == 'darwin':
         strip=False,
         upx=False,
         console=False,           # GUI 应用，不显示终端
-        icon='assets/icon.icns', # macOS 图标（可选）
+        icon=_icon_mac,          # macOS 图标（可选）
     )
     app = BUNDLE(
         exe,
         a.binaries,
         a.datas,
         name='差旅搭子.app',
-        icon='assets/icon.icns',
+        icon=_icon_mac,
         bundle_identifier='com.chailv-dazi.app',
         info_plist={
             'CFBundleName': '差旅搭子',
@@ -96,7 +103,7 @@ else:
         strip=False,
         upx=False,
         console=False,           # GUI 应用
-        icon='assets/icon.ico' if sys.platform == 'win32' else None,
+        icon=_icon_win,
     )
     coll = COLLECT(
         exe,
