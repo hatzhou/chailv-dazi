@@ -61,13 +61,22 @@ FONT_STACK = "Microsoft YaHei, PingFang SC, Noto Sans CJK SC, WenQuanYi Micro He
 def stylesheet() -> str:
     return f"""
     /* ===================== 基础 ===================== */
+    /* 注意：QWidget 不能设不透明底色，否则 QLabel 等子控件会各自刷出底色块，
+       落在白色卡片上便与底色产生色差。窗口底色由 QMainWindow/调色板提供，
+       子控件默认透明以透出父级背景。 */
     QWidget {{
         font-family: {FONT_STACK};
         font-size: 13px;
         color: {C['text']};
-        background: {C['bg']};
+    }}
+    QLabel {{
+        background: transparent;
     }}
     QMainWindow, MainWindow {{
+        background: {C['bg']};
+        border: none;
+    }}
+    QStackedWidget {{
         background: {C['bg']};
         border: none;
     }}
